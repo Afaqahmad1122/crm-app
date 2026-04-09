@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+  customers Customer[]
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  name           String
+  role           Role     @default(AGENT)
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  assignments    CustomerAssignment[]
+  notes          Note[]
+
+  @@index([organizationId])
+}
+
+model Customer {
+  id             String    @id @default(uuid())
+  name           String
+  email          String
+  phone          String?
+  status         Status    @default(ACTIVE)
+  organizationId String
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime? // Soft delete
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  assignments    CustomerAssignment[]
+  notes          Note[]
+  activityLogs   ActivityLog[]
+
+  @@index([organizationId])
+  @@index([organizationId, deletedAt]) // Performance index
+}
+
+model CustomerAssignment {
+  id         String   @id @default(uuid())
+  userId     String
+  customerId String
+  assignedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([userId, customerId])
+  @@index([userId])
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  content    String
+  customerId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  action     String
+  customerId String
+  userId     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
