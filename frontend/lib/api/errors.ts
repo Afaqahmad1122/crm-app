@@ -16,6 +16,12 @@ export class ApiError extends Error {
         text = raw;
       } else if (Array.isArray(raw)) {
         text = raw.map(String).join(", ");
+      } else if (raw && typeof raw === "object" && "message" in raw) {
+        const nested = (raw as { message: unknown }).message;
+        text =
+          typeof nested === "string" && nested.trim().length > 0
+            ? nested
+            : JSON.stringify(raw);
       } else {
         text = JSON.stringify(raw);
       }

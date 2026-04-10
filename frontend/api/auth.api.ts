@@ -1,4 +1,4 @@
-import { apiClient } from "./axios";
+import { apiRequest } from "@/lib/api/client";
 import type {
   AuthUser,
   LoginPayload,
@@ -9,25 +9,17 @@ import type {
 
 export const authApi = {
   login: async (payload: LoginPayload) => {
-    const { data } = await apiClient.post<LoginResponse>(
-      "/auth/login",
-      payload,
-    );
-    return data;
+    return apiRequest<LoginResponse>("POST", "/auth/login", { body: payload });
   },
   register: async (payload: RegisterPayload) => {
-    const { data } = await apiClient.post<RegisterResponse>(
-      "/auth/register",
-      payload,
-    );
-    return data;
+    return apiRequest<RegisterResponse>("POST", "/auth/register", {
+      body: payload,
+    });
   },
   logout: async () => {
-    const { data } = await apiClient.post<{ ok: true }>("/auth/logout");
-    return data;
+    return apiRequest<{ ok: true }>("POST", "/auth/logout");
   },
   me: async () => {
-    const { data } = await apiClient.get<AuthUser>("/auth/me");
-    return data;
+    return apiRequest<AuthUser>("GET", "/auth/me");
   },
 };

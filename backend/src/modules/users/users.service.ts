@@ -126,6 +126,33 @@ export class UsersService {
   async remove(id: string, organizationId: string) {
     await this.findOne(id, organizationId);
 
+    const [assignmentsCount, notesCount] = await Promise.all([
+      this.prisma.customerAssignment.count({
+        where: {
+          userId: id,
+          customer: { organizationId },
+        },
+      }),
+      this.prisma.note.count({
+        where: {
+          userId: id,
+          organizationId,
+        },
+      }),
+    ]);
+
+    if (assignmentsCount > 0) {
+      throw new ConflictException(
+        'Cannot delete user with assigned customers. Unassign customers first.',
+      );
+    }
+
+    if (notesCount > 0) {
+      throw new ConflictException(
+        'Cannot delete user with notes. Reassign or remove notes first.',
+      );
+    }
+
     await this.prisma.user.delete({ where: { id } });
 
     return { message: 'User deleted successfully' };

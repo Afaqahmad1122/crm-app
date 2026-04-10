@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "./config";
+import axios, { isAxiosError } from "axios";
 import { ApiError } from "./errors";
 import type { ApiSuccessEnvelope } from "./types";
 
@@ -26,12 +27,12 @@ export async function apiRequest<T>(
   init?: ApiRequestInit,
 ): Promise<T> {
   const url = joinUrl(getApiBaseUrl(), path);
-  const headers: Record<string, string> = {
+  const headers: Record<string, string | undefined> = {
     Accept: "application/json",
     ...(init?.headers ?? {}),
   };
 
-  let body: string | undefined;
+  let body: unknown;
   if (
     init?.body !== undefined &&
     init.body !== null &&
@@ -39,35 +40,34 @@ export async function apiRequest<T>(
     method !== "HEAD"
   ) {
     headers["Content-Type"] = "application/json";
-    body = JSON.stringify(init.body);
+    body = init.body;
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-    signal: init?.signal,
-    credentials: "include",
-  });
+  try {
+    const res = await axios.request({
+      url,
+      method,
+      headers,
+      data: body,
+      signal: init?.signal,
+      withCredentials: true,
+      responseType: "json",
+    });
+    const payload: unknown = res.data;
 
-  const contentType = res.headers.get("content-type") ?? "";
-  const isJson = contentType.includes("application/json");
-  const payload: unknown = isJson ? await res.json() : await res.text();
+    if (isRecord(payload) && payload.success === true && "data" in payload) {
+      return (payload as ApiSuccessEnvelope<T>).data;
+    }
 
-  if (!res.ok) {
-    throw ApiError.fromResponse(res.status, payload);
+    return payload as T;
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      const status = error.response?.status ?? 0;
+      const payload = error.response?.data;
+      throw ApiError.fromResponse(status, payload);
+    }
+    throw error;
   }
-
-  if (
-    isJson &&
-    isRecord(payload) &&
-    payload.success === true &&
-    "data" in payload
-  ) {
-    return (payload as ApiSuccessEnvelope<T>).data;
-  }
-
-  return payload as T;
 }
 
 export function apiGet<T>(path: string, init?: ApiRequestInit): Promise<T> {
