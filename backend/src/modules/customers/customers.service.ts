@@ -16,9 +16,11 @@ export class CustomersService {
     const customer = await this.repo.create(dto, organizationId);
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
       action: 'CUSTOMER_CREATED',
       customerId: customer.id,
-      userId,
+      performedBy: userId,
       metadata: { name: customer.name },
     });
 
@@ -45,9 +47,11 @@ export class CustomersService {
     if (!updated) throw new NotFoundException('Customer not found');
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: id,
       action: 'CUSTOMER_UPDATED',
       customerId: id,
-      userId,
+      performedBy: userId,
       metadata: { changes: dto },
     });
 
@@ -59,9 +63,11 @@ export class CustomersService {
     if (!deleted) throw new NotFoundException('Customer not found');
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: id,
       action: 'CUSTOMER_DELETED',
       customerId: id,
-      userId,
+      performedBy: userId,
     });
 
     return { message: 'Customer deleted successfully' };
@@ -72,9 +78,11 @@ export class CustomersService {
     if (!restored) throw new NotFoundException('Deleted customer not found');
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: id,
       action: 'CUSTOMER_RESTORED',
       customerId: id,
-      userId,
+      performedBy: userId,
     });
 
     return restored;

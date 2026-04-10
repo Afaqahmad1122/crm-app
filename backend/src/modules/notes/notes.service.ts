@@ -31,6 +31,7 @@ export class NotesService {
       data: {
         content: dto.content,
         customerId: dto.customerId,
+        organizationId: customer.organizationId,
         userId,
       },
       include: {
@@ -41,9 +42,11 @@ export class NotesService {
     });
 
     await this.activityLogs.log({
+      entityType: 'NOTE',
+      entityId: note.id,
       action: 'NOTE_ADDED',
       customerId: dto.customerId,
-      userId,
+      performedBy: userId,
       metadata: { noteId: note.id },
     });
 
@@ -58,7 +61,7 @@ export class NotesService {
     if (!customer) throw new NotFoundException('Customer not found');
 
     return this.prisma.note.findMany({
-      where: { customerId },
+      where: { customerId, organizationId },
       include: {
         user: {
           select: { id: true, name: true, email: true },
@@ -100,9 +103,11 @@ export class NotesService {
     });
 
     await this.activityLogs.log({
+      entityType: 'NOTE',
+      entityId: noteId,
       action: 'NOTE_UPDATED',
       customerId: note.customerId,
-      userId,
+      performedBy: userId,
       metadata: { noteId },
     });
 
@@ -132,9 +137,11 @@ export class NotesService {
     await this.prisma.note.delete({ where: { id: noteId } });
 
     await this.activityLogs.log({
+      entityType: 'NOTE',
+      entityId: noteId,
       action: 'NOTE_DELETED',
       customerId: note.customerId,
-      userId,
+      performedBy: userId,
       metadata: { noteId },
     });
 

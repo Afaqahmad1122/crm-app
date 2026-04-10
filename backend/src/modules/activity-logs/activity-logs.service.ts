@@ -13,9 +13,11 @@ export class ActivityLogsService implements IActivityLogsService {
   async log(dto: ActivityLogPayload) {
     return this.prisma.activityLog.create({
       data: {
+        entityType: dto.entityType,
+        entityId: dto.entityId,
         action: dto.action,
         customerId: dto.customerId,
-        userId: dto.userId,
+        performedBy: dto.performedBy,
         metadata: (dto.metadata ?? {}) as Prisma.InputJsonValue,
       },
     });

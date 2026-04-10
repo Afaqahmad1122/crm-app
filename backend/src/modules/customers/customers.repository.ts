@@ -51,6 +51,7 @@ export class CustomersRepository {
           phone: true,
           status: true,
           createdAt: true,
+          updatedAt: true,
           assignments: {
             select: {
               user: {

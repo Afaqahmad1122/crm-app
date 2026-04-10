@@ -40,9 +40,11 @@ export class AssignmentsService {
     );
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: dto.customerId,
       action: 'CUSTOMER_ASSIGNED',
       customerId: dto.customerId,
-      userId: actorId,
+      performedBy: actorId,
       metadata: {
         assignedTo: dto.userId,
         assignedToName: user.name,
@@ -66,9 +68,11 @@ export class AssignmentsService {
     const result = await this.repo.unassignCustomer(dto.userId, dto.customerId);
 
     await this.activityLogs.log({
+      entityType: 'CUSTOMER',
+      entityId: dto.customerId,
       action: 'CUSTOMER_UNASSIGNED',
       customerId: dto.customerId,
-      userId: actorId,
+      performedBy: actorId,
       metadata: { unassignedFrom: dto.userId },
     });
 

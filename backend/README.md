@@ -1,98 +1,76 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# CRM Backend (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Multi-tenant CRM API: organizations, users, customers (with soft delete), assignments, notes, and an activity log. Built with **TypeScript**, **NestJS**, **PostgreSQL**, and **Prisma**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Setup
 
-## Description
+1. Copy `.env` (see your team’s template) with `DATABASE_URL` and `JWT_SECRET`.
+2. Install dependencies: `npm install`
+3. Apply migrations: `npx prisma migrate deploy` (or `npx prisma migrate dev` in development)
+4. Generate client (if needed): `npx prisma generate`
+5. Run: `npm run start:dev` — API base path: `/api`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Architecture
 
-## Project setup
+- **Modules** per domain: `auth`, `users`, `customers`, `assignments`, `notes`, `activity-logs`.
+- **Controllers** handle HTTP; **services** hold business rules; **repositories** (where used) isolate Prisma queries.
+- **Global** `ValidationPipe` (whitelist + transform), exception filter, logging interceptor, and response wrapper.
 
-```bash
-$ npm install
-```
+## Multi-tenancy isolation
 
-## Compile and run the project
+- Every user has an `organizationId`. JWT carries `sub` and `organizationId`; `JwtStrategy` loads the full user from the database.
+- Queries **scope by `organizationId`** (customers, users, assignments) or by relations that imply the org (e.g. note → customer / `note.organizationId`).
+- Cross-organization access is rejected via `NotFoundException` / `ForbiddenException` patterns so IDs from another tenant do not leak data.
 
-```bash
-# development
-$ npm run start
+## Concurrency-safe assignment (max 5 active customers per user)
 
-# watch mode
-$ npm run start:dev
+- Rule: a user may have at most **5** assignments to customers that are **not soft-deleted** and belong to the same organization.
+- **Implementation:** `AssignmentsRepository.assignCustomer` runs a **transaction** that locks the assignee’s `User` row with `SELECT … FOR UPDATE`, then counts assignments and inserts only if under the cap.
+- **Why:** Locking only assignment rows fails when the user has **zero** rows—parallel requests could all pass a count check. Serializing on the user row queues concurrent assigns for that user and prevents races.
 
-# production mode
-$ npm run start:prod
-```
+## Performance strategy
 
-## Run tests
+- **Indexes** (see `prisma/schema.prisma`): e.g. `Customer (organizationId, deletedAt)`, `Note (customerId)`, `Note (organizationId)`, `ActivityLog (customerId)`, `ActivityLog (entityType, entityId)`, assignment uniques and `userId` index.
+- **Customer list:** `count` and `findMany` run in **parallel**; pagination uses `skip` / `take`; search uses indexed filters where possible plus `ILIKE`-style `contains` on name/email/phone.
+- **N+1:** List endpoints use Prisma `select` / `include` deliberately (e.g. assignments with nested `user`) instead of per-row queries in loops.
 
-```bash
-# unit tests
-$ npm run test
+**Scaling (100k+ customers per org):** Current design stays valid with PostgreSQL; for very large orgs you would add read replicas, consider full-text search (e.g. PostgreSQL `tsvector`) for name/email, and optionally cursor-based pagination for deep pages.
 
-# e2e tests
-$ npm run test:e2e
+## Soft delete integrity
 
-# test coverage
-$ npm run test:cov
-```
+- Customers use `deletedAt`; normal customer queries require `deletedAt: null`.
+- **Notes** and **activity logs** remain stored when a customer is soft-deleted; restoring the customer makes notes visible again on customer detail flows.
+- Assignments only count **non-deleted** customers toward the limit of 5.
 
-## Deployment
+## Activity log (requirements alignment)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Stored fields map to the spec as follows:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Spec field     | Storage |
+|----------------|---------|
+| `entityType`   | `ActivityLog.entityType` |
+| `entityId`     | `ActivityLog.entityId` |
+| `action`       | `ActivityLog.action` |
+| `performedBy`  | `ActivityLog.performedBy` (DB column `userId`) |
+| `timestamp`    | `ActivityLog.createdAt` |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+Customer-scoped events use `entityType = CUSTOMER` and `entityId = customerId`. Note events use `entityType = NOTE` and `entityId = noteId`. `customerId` remains a foreign key for customer-associated history.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Production improvement: HTTP logging interceptor
 
-## Resources
+- **What:** `LoggingInterceptor` logs method, URL, and duration for each request.
+- **Why:** Low-cost observability for debugging and slow-request detection without adding infrastructure. Complements structured logging you might add later (JSON logs, correlation IDs).
 
-Check out a few resources that may come in handy when working with NestJS:
+## Trade-offs
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- **Assignments** use a junction table instead of a single `assignedTo` on `Customer`—supports multiple assignees if you extend the product, at the cost of an extra join.
+- **Activity log** keeps a required `customerId` FK so customer timelines stay simple; generic `entityType` / `entityId` cover the spec without dropping relational integrity.
+- **Role enum** uses `ADMIN` and `MEMBER` (spec “member”); default role for new users is `MEMBER`.
 
-## Support
+## API documentation
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+OpenAPI/Swagger is not wired in this repo; endpoints follow REST-style routes under `/api` (e.g. `/api/customers`, `/api/notes`, `/api/assignments`).
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED (private project).

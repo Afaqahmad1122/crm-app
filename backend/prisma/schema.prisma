@@ -13,6 +13,7 @@ model Organization {
 
   users     User[]
   customers Customer[]
+  notes     Note[]
 }
 
 model User {
@@ -20,7 +21,7 @@ model User {
   email          String   @unique
   password       String
   name           String
-  role           Role     @default(AGENT)
+  role           Role     @default(MEMBER)
   organizationId String
   createdAt      DateTime @default(now())
 
@@ -39,6 +40,7 @@ model Customer {
   status         Status    @default(ACTIVE)
   organizationId String
   createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   deletedAt      DateTime? // Soft delete
 
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -64,34 +66,40 @@ model CustomerAssignment {
 }
 
 model Note {
-  id         String   @id @default(uuid())
-  content    String
-  customerId String
-  userId     String
-  createdAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  content        String
+  customerId     String
+  organizationId String
+  userId         String
+  createdAt      DateTime @default(now())
 
-  customer   Customer @relation(fields: [customerId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
 
   @@index([customerId])
+  @@index([organizationId])
 }
 
 model ActivityLog {
-  id         String   @id @default(uuid())
-  action     String
-  customerId String
-  userId     String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  action      String
+  customerId  String
+  performedBy String?  @map("userId")
+  metadata    Json?
+  createdAt   DateTime @default(now())
 
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
+  @@index([entityType, entityId])
 }
 
 enum Role {
   ADMIN
-  AGENT
+  MEMBER
 }
 
 enum Status {
