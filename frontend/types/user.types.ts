@@ -2,7 +2,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "manager" | "agent";
+  role: "ADMIN" | "MEMBER";
+  createdAt?: string;
   _count?: {
     assignments: number;
   };
