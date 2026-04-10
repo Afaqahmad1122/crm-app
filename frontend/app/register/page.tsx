@@ -31,7 +31,7 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       await authApi.register({ name, organizationName, email, password });
-      router.replace("/dashboard");
+      router.replace("/login");
     } catch (err: unknown) {
       const message =
         typeof err === "object" && err !== null && "message" in err

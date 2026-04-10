@@ -1,11 +1,42 @@
+ "use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = [
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Customers", href: "/dashboard/customers" },
+  { label: "Users", href: "/dashboard/users" },
+  { label: "Assignments", href: "/dashboard/assignments" },
+];
+
 export const Sidebar = () => {
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === href;
+    return pathname.startsWith(href);
+  };
+
   return (
-    <aside className="w-60 rounded-lg bg-white p-4 shadow-sm">
-      <ul className="space-y-2 text-sm">
-        <li>Dashboard</li>
-        <li>Customers</li>
-        <li>Users</li>
-        <li>Assignments</li>
+    <aside className="w-60 rounded-xl border bg-white p-3 shadow-sm">
+      <ul className="space-y-1 text-sm">
+        {NAV_ITEMS.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className={cn(
+                "block rounded-lg px-3 py-2 transition-colors",
+                isActive(item.href)
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
       </ul>
     </aside>
   );
