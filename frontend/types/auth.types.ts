@@ -9,8 +9,8 @@ export interface LoginPayload {
   password: string;
 }
 
+/** Through `/api/proxy`, `token` is never sent to the browser (httpOnly cookie only). */
 export interface LoginResponse {
-  token: string;
   user: AuthUser;
 }
 
@@ -22,7 +22,6 @@ export interface RegisterPayload {
 }
 
 export interface RegisterResponse {
-  token: string;
   user: AuthUser;
   organization: {
     id: string;

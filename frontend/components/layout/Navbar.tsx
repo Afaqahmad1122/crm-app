@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/api/auth.api";
-import { clearStoredAuthToken } from "@/lib/auth/token-storage";
 import { Button } from "@/components/ui/button";
 
 export const Navbar = () => {
@@ -12,14 +11,7 @@ export const Navbar = () => {
   const onLogout = async () => {
     try {
       await authApi.logout();
-    } catch {
-      /* still clear client session */
     } finally {
-      await fetch("/api/auth/session", {
-        method: "DELETE",
-        credentials: "include",
-      });
-      clearStoredAuthToken();
       router.replace("/login");
       router.refresh();
     }
