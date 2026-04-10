@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+// Feature forms and shared CRM UI.
 import { CustomerForm } from "@/components/forms/CustomerForm";
 import { NoteForm } from "@/components/forms/NoteForm";
 import { CrmPagination, QueryState } from "@/components/reusable";
@@ -30,18 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useApiDelete,
-  useApiGet,
-  useApiPatch,
-  useApiPost,
-} from "@/hooks/api";
+import { useApiDelete, useApiGet, useApiPatch, useApiPost } from "@/hooks/api";
 import type { Customer, CustomerPayload } from "@/types/customer.types";
 import type { Note, NotePayload } from "@/types/note.types";
 import type { User } from "@/types/user.types";
 
 const PAGE_SIZE = 10;
 
+/** Shape of GET /customers response: list + pagination meta from the backend. */
 type CustomersListResponse = {
   data: Customer[];
   meta: {
@@ -64,17 +61,23 @@ export default function CustomersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Create / edit customer modal.
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
+  // Assign customer to a user modal.
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [assigningCustomer, setAssigningCustomer] = useState<Customer | null>(null);
+  const [assigningCustomer, setAssigningCustomer] = useState<Customer | null>(
+    null,
+  );
   const [selectedUserId, setSelectedUserId] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
 
+  // Notes modal: which customer’s notes we are viewing.
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
   const [notesCustomer, setNotesCustomer] = useState<Customer | null>(null);
 
+  // Debounce search: wait 350ms after typing stops, then trim + update searchTerm and reset to page 1.
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearchTerm(searchInput.trim());
@@ -86,6 +89,7 @@ export default function CustomersPage() {
     };
   }, [searchInput]);
 
+  // Stable API URL string for the customers list (page, limit, optional search).
   const customersPath = useMemo(() => {
     const params = new URLSearchParams({
       page: String(page),
@@ -99,15 +103,18 @@ export default function CustomersPage() {
     return `/customers?${params.toString()}`;
   }, [page, searchTerm]);
 
+  // Fetch paginated customers; placeholderData keeps previous page data while refetching (smoother UX).
   const customersQuery = useApiGet<CustomersListResponse>(customersPath, {
     queryKey: ["customers", page, searchTerm],
     placeholderData: (previousData) => previousData,
   });
 
+  // All users: populate the Assign dropdown.
   const usersQuery = useApiGet<User[]>("/users", {
     queryKey: ["users"],
   });
 
+  // Notes for the currently opened customer; request disabled until notesCustomer is set (null URL).
   const notesQuery = useApiGet<Note[]>(
     notesCustomer ? `/notes/customer/${notesCustomer.id}` : null,
     {
@@ -115,6 +122,7 @@ export default function CustomersPage() {
     },
   );
 
+  // Mutations: POST/PATCH/DELETE/POST for server actions; hooks expose isPending, error, mutateAsync.
   const createCustomerMutation = useApiPost<Customer, CustomerPayload>({
     path: "/customers",
   });
@@ -127,10 +135,14 @@ export default function CustomersPage() {
     body: (variables) => variables.payload,
   });
 
-  const deleteCustomerMutation = useApiDelete<{ message: string }, { id: string }>({
+  const deleteCustomerMutation = useApiDelete<
+    { message: string },
+    { id: string }
+  >({
     path: (variables) => `/customers/${variables.id}`,
   });
 
+  // Creates an assignment row linking customer ↔ user (backend /assignments).
   const assignCustomerMutation = useApiPost<
     unknown,
     { customerId: string; userId: string }
@@ -142,13 +154,16 @@ export default function CustomersPage() {
     path: "/notes",
   });
 
+  // Normalized list + meta for the table and CrmPagination.
   const customers = customersQuery.data?.data ?? [];
   const paginationMeta = customersQuery.data?.meta;
 
+  /** Refetch every query whose key starts with ["customers"] (all pages/searches). */
   const refreshCustomers = async () => {
     await queryClient.invalidateQueries({ queryKey: ["customers"] });
   };
 
+  // --- Customer CRUD (modal) ---
   const handleOpenCreateDialog = () => {
     setEditingCustomer(null);
     setIsCustomerDialogOpen(true);
@@ -159,6 +174,7 @@ export default function CustomersPage() {
     setIsCustomerDialogOpen(true);
   };
 
+  /** Create or update via API, close modal, then invalidate customer list. */
   const handleSaveCustomer = async (payload: CustomerPayload) => {
     if (editingCustomer) {
       await updateCustomerMutation.mutateAsync({
@@ -174,6 +190,7 @@ export default function CustomersPage() {
     await refreshCustomers();
   };
 
+  /** Soft-delete after browser confirm; then refresh list. */
   const handleDeleteCustomer = async (customer: Customer) => {
     const confirmed = window.confirm(
       `Delete "${customer.name}"? This is a soft delete and customer will be hidden from normal list.`,
@@ -184,6 +201,7 @@ export default function CustomersPage() {
     await refreshCustomers();
   };
 
+  // --- Assign customer to a team member ---
   const handleOpenAssignDialog = (customer: Customer) => {
     setAssigningCustomer(customer);
     setSelectedUserId(customer.assignments?.[0]?.user.id ?? "");
@@ -191,6 +209,7 @@ export default function CustomersPage() {
     setIsAssignDialogOpen(true);
   };
 
+  /** POST assignment, close modal, clear selection, refresh customers. */
   const handleAssignCustomer = async () => {
     if (!assigningCustomer || !selectedUserId) {
       setAssignError("Please select a user first.");
@@ -209,6 +228,7 @@ export default function CustomersPage() {
     await refreshCustomers();
   };
 
+  // --- Notes modal: list + add note ---
   const handleOpenNotesDialog = (customer: Customer) => {
     setNotesCustomer(customer);
     setIsNotesDialogOpen(true);
@@ -221,10 +241,12 @@ export default function CustomersPage() {
     });
   };
 
+  // UI: disable submit while either create or update is in flight; surface first error message.
   const isSavingCustomer =
     createCustomerMutation.isPending || updateCustomerMutation.isPending;
   const customerMutationError =
-    createCustomerMutation.error?.message || updateCustomerMutation.error?.message;
+    createCustomerMutation.error?.message ||
+    updateCustomerMutation.error?.message;
 
   return (
     <div className="space-y-4">
@@ -247,6 +269,7 @@ export default function CustomersPage() {
         />
       </div>
 
+      {/* Loading / error / empty / content wrapper around table + pagination */}
       <QueryState
         isLoading={customersQuery.isLoading}
         isError={customersQuery.isError}
@@ -277,13 +300,19 @@ export default function CustomersPage() {
                   <TableCell>{customer.email}</TableCell>
                   <TableCell>{customer.phone || "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={customer.status === "ACTIVE" ? "secondary" : "outline"}>
+                    <Badge
+                      variant={
+                        customer.status === "ACTIVE" ? "secondary" : "outline"
+                      }
+                    >
                       {customer.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {customer.assignments?.length
-                      ? customer.assignments.map((item) => item.user.name).join(", ")
+                      ? customer.assignments
+                          .map((item) => item.user.name)
+                          .join(", ")
                       : "Unassigned"}
                   </TableCell>
                   <TableCell>{formatDate(customer.createdAt)}</TableCell>
@@ -337,14 +366,19 @@ export default function CustomersPage() {
         ) : null}
       </QueryState>
 
-      <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+      {/* Create or edit customer (shared CustomerForm) */}
+      <Dialog
+        open={isCustomerDialogOpen}
+        onOpenChange={setIsCustomerDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {editingCustomer ? "Edit Customer" : "Create Customer"}
             </DialogTitle>
             <DialogDescription>
-              Save customer details. You can assign and add notes from list actions.
+              Save customer details. You can assign and add notes from list
+              actions.
             </DialogDescription>
           </DialogHeader>
           {customerMutationError ? (
@@ -364,18 +398,23 @@ export default function CustomersPage() {
                 : undefined
             }
             isSubmitting={isSavingCustomer}
-            submitLabel={editingCustomer ? "Update Customer" : "Create Customer"}
+            submitLabel={
+              editingCustomer ? "Update Customer" : "Create Customer"
+            }
             onSubmit={handleSaveCustomer}
           />
         </DialogContent>
       </Dialog>
 
+      {/* Pick a user from /users and POST /assignments */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Customer</DialogTitle>
             <DialogDescription>
-              Assign <span className="font-medium">{assigningCustomer?.name}</span> to a team member.
+              Assign{" "}
+              <span className="font-medium">{assigningCustomer?.name}</span> to
+              a team member.
             </DialogDescription>
           </DialogHeader>
 
@@ -406,19 +445,24 @@ export default function CustomersPage() {
             >
               Cancel
             </Button>
-            <Button onClick={() => void handleAssignCustomer()} disabled={assignCustomerMutation.isPending}>
+            <Button
+              onClick={() => void handleAssignCustomer()}
+              disabled={assignCustomerMutation.isPending}
+            >
               {assignCustomerMutation.isPending ? "Assigning..." : "Assign"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* NoteForm + scrollable list from notesQuery */}
       <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Customer Notes</DialogTitle>
             <DialogDescription>
-              Add and review notes for <span className="font-medium">{notesCustomer?.name}</span>.
+              Add and review notes for{" "}
+              <span className="font-medium">{notesCustomer?.name}</span>.
             </DialogDescription>
           </DialogHeader>
 
@@ -440,7 +484,9 @@ export default function CustomersPage() {
             {notesQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading notes...</p>
             ) : notesQuery.isError ? (
-              <p className="text-sm text-red-700">{notesQuery.error?.message}</p>
+              <p className="text-sm text-red-700">
+                {notesQuery.error?.message}
+              </p>
             ) : (notesQuery.data ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No notes yet.</p>
             ) : (
@@ -448,7 +494,8 @@ export default function CustomersPage() {
                 <div key={note.id} className="rounded-md border p-2">
                   <p className="text-sm">{note.content}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {note.user?.name ?? "Unknown"} - {formatDate(note.createdAt)}
+                    {note.user?.name ?? "Unknown"} -{" "}
+                    {formatDate(note.createdAt)}
                   </p>
                 </div>
               ))
@@ -459,4 +506,3 @@ export default function CustomersPage() {
     </div>
   );
 }
-

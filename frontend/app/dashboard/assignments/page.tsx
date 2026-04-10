@@ -26,17 +26,20 @@ import type { Assignment } from "@/types/assignment.types";
 import type { Customer } from "@/types/customer.types";
 import type { User } from "@/types/user.types";
 
+// Backend response for `/assignments/user/:userId/count`
 type AssignmentCountResponse = {
   assigned: number;
   remaining: number;
   maxAllowed: number;
 };
 
+// Request payload for assign/unassign operations
 type AssignPayload = {
   customerId: string;
   userId: string;
 };
 
+// Shared date formatter for table values
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString();
 }
@@ -44,14 +47,17 @@ function formatDate(value: string): string {
 export default function AssignmentsPage() {
   const queryClient = useQueryClient();
 
+  // Local UI state for selected entities and customer search input
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
 
+  // Load all users for "Select User" dropdown
   const usersQuery = useApiGet<User[]>("/users", {
     queryKey: ["users"],
   });
 
+  // Load customers list used as assign options
   const customersQuery = useApiGet<{ data: Customer[]; meta: { total: number } }>(
     "/customers?page=1&limit=100",
     {
@@ -59,6 +65,7 @@ export default function AssignmentsPage() {
     },
   );
 
+  // Load assignments only when a user is selected
   const assignmentsQuery = useApiGet<Assignment[]>(
     selectedUserId ? `/assignments/user/${selectedUserId}` : null,
     {
@@ -66,6 +73,7 @@ export default function AssignmentsPage() {
     },
   );
 
+  // Load assignment counters for selected user (assigned/remaining/max)
   const assignmentCountQuery = useApiGet<AssignmentCountResponse>(
     selectedUserId ? `/assignments/user/${selectedUserId}/count` : null,
     {
@@ -82,6 +90,7 @@ export default function AssignmentsPage() {
     body: (variables) => variables,
   });
 
+  // Customer options = not already assigned to selected user + optional search filter
   const availableCustomers = useMemo(() => {
     const selectedCustomerIds = new Set(
       (assignmentsQuery.data ?? []).map((assignment) => assignment.customerId),
@@ -98,8 +107,10 @@ export default function AssignmentsPage() {
     });
   }, [assignmentsQuery.data, customerSearch, customersQuery.data?.data]);
 
+  // Derive selected user details for header text
   const selectedUser = (usersQuery.data ?? []).find((user) => user.id === selectedUserId);
 
+  // Keep assignment-related screens in sync after mutations
   const refreshAssignmentData = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["assignments", "user", selectedUserId] }),
@@ -112,17 +123,20 @@ export default function AssignmentsPage() {
   const handleAssign = async () => {
     if (!selectedUserId || !selectedCustomerId) return;
 
+    // Create assignment for selected user/customer pair
     await assignMutation.mutateAsync({
       customerId: selectedCustomerId,
       userId: selectedUserId,
     });
 
+    // Reset selected customer and refresh dependent data
     setSelectedCustomerId("");
     await refreshAssignmentData();
   };
 
   const handleUnassign = async (customerId: string) => {
     if (!selectedUserId) return;
+    // Remove assignment for selected user/customer pair
     await unassignMutation.mutateAsync({
       customerId,
       userId: selectedUserId,
