@@ -229,6 +229,7 @@ export default function AssignmentsPage() {
 
       <div className="flex justify-end">
         <Button
+          className="w-full sm:w-auto"
           onClick={() => void handleAssign()}
           disabled={!selectedUserId || !selectedCustomerId || assignMutation.isPending}
         >

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 
 export function LoginClient() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const next = useMemo(
     () => searchParams.get("next") ?? "/dashboard",
@@ -34,7 +36,9 @@ export function LoginClient() {
     setIsLoading(true);
     try {
       await authApi.login({ email, password });
+      queryClient.clear();
       router.replace(next);
+      router.refresh();
     } catch (err: unknown) {
       const message =
         typeof err === "object" && err !== null && "message" in err

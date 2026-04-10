@@ -10,7 +10,8 @@ export default function ProfilePage() {
     queryKey: ["auth", "me"],
     queryFn: authApi.me,
     retry: 0,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
 

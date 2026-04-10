@@ -165,14 +165,16 @@ export default function UsersPage() {
             Manage organization users and roles.
           </p>
         </div>
-        <Button onClick={openCreateDialog}>Add User</Button>
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
+          Add User
+        </Button>
       </div>
 
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search by name or email..."
-        className="max-w-xs"
+        className="w-full sm:max-w-xs"
       />
 
       {mutationError ? (
@@ -216,7 +218,7 @@ export default function UsersPage() {
                   <TableCell>{user._count?.assignments ?? 0}</TableCell>
                   <TableCell>{formatDate(user.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex flex-wrap justify-end gap-1">
                       <Button variant="outline" size="sm" onClick={() => openEditDialog(user)}>
                         Edit
                       </Button>
@@ -285,7 +287,7 @@ export default function UsersPage() {
               minLength={6}
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 variant="outline"
                 type="button"

@@ -261,7 +261,9 @@ export default function CustomersPage() {
             Manage customer records, assignments, and notes.
           </p>
         </div>
-        <Button onClick={handleOpenCreateDialog}>Add Customer</Button>
+        <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
+          Add Customer
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -269,7 +271,7 @@ export default function CustomersPage() {
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="Search by name or email..."
-          className="max-w-xs"
+          className="w-full sm:max-w-xs"
         />
       </div>
 
@@ -321,7 +323,7 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell>{formatDate(customer.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex flex-wrap justify-end gap-1">
                       <Button
                         variant="outline"
                         size="sm"
@@ -441,7 +443,7 @@ export default function CustomersPage() {
             </p>
           ) : null}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
               onClick={() => setIsAssignDialogOpen(false)}

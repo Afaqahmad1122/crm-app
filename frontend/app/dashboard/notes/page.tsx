@@ -220,7 +220,7 @@ export default function NotesPage() {
                       }
                       rows={3}
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         onClick={() => void handleUpdateNote()}
@@ -246,7 +246,7 @@ export default function NotesPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {note.user?.name ?? "Unknown"} - {formatDate(note.createdAt)}
                 </p>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -279,6 +279,7 @@ export default function NotesPage() {
       <div className="flex justify-end">
         <Button
           variant="outline"
+          className="w-full sm:w-auto"
           onClick={() => {
             void customersQuery.refetch();
             if (selectedCustomerId) void notesQuery.refetch();

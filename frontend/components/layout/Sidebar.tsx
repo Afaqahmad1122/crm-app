@@ -22,14 +22,14 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="sticky top-20 h-[calc(100vh-6rem)] w-60 overflow-y-auto rounded-xl border bg-white p-3 shadow-sm">
-      <ul className="space-y-1 text-sm">
+    <aside className="w-full overflow-y-auto rounded-xl border bg-white p-3 shadow-sm md:sticky md:top-20 md:h-[calc(100vh-6rem)] md:w-60">
+      <ul className="flex gap-1 overflow-x-auto pb-1 text-sm md:block md:space-y-1 md:overflow-visible md:pb-0">
         {NAV_ITEMS.map((item) => (
-          <li key={item.href}>
+          <li key={item.href} className="shrink-0">
             <Link
               href={item.href}
               className={cn(
-                "block rounded-lg px-3 py-2 transition-colors",
+                "block rounded-lg px-3 py-2 whitespace-nowrap transition-colors",
                 isActive(item.href)
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
