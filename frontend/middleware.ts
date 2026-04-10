@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const AUTH_COOKIE_NAME = "crm_token";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const IS_PROXY_MODE = API_BASE.startsWith("/api/proxy");
 
 const PUBLIC_PATH_PREFIXES = [
   "/login",
@@ -9,9 +12,6 @@ const PUBLIC_PATH_PREFIXES = [
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
-  /** BFF proxy: unauthenticated auth endpoints (cookie is set here, never token in JSON) */
-  "/api/proxy/auth/login",
-  "/api/proxy/auth/register",
 ];
 
 function isPublicPath(pathname: string) {
@@ -24,6 +24,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublicPath(pathname)) return NextResponse.next();
+  if (!IS_PROXY_MODE) return NextResponse.next();
 
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {

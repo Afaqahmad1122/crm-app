@@ -2,15 +2,14 @@
  * API base URL used by the browser.
  *
  * - Local (direct Nest): `http://localhost:3001/api`
- * - Production (JWT only in httpOnly cookie, no token in JSON): same-origin proxy
- *   `NEXT_PUBLIC_API_URL=/api/proxy` and server `BACKEND_URL=https://your-api.onrender.com`
+ * - Production (direct backend): `https://your-backend.onrender.com/api`
  */
 export function getApiBaseUrl(): string {
   const configured =
     process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL;
   const fallback =
     process.env.NODE_ENV === "production"
-      ? "/api/proxy"
+      ? "https://crm-app-z2zk.onrender.com/api"
       : "http://localhost:3001/api";
   const url = configured ?? fallback;
   return url.replace(/\/$/, "");

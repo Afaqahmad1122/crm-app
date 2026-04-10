@@ -24,10 +24,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie(AUTH_COOKIE_NAME, result.token, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       maxAge: 1000 * 60 * 60 * 24 * 7,
       path: '/',
     });
@@ -36,7 +37,12 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+    const isProd = process.env.NODE_ENV === 'production';
+    res.clearCookie(AUTH_COOKIE_NAME, {
+      path: '/',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
+    });
     return { ok: true };
   }
 
