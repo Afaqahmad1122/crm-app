@@ -8,6 +8,28 @@ import type { User } from '@prisma/client';
 import type { Response } from 'express';
 import { AUTH_COOKIE_NAME } from './auth.constants';
 
+type CookieSameSite = 'lax' | 'strict' | 'none';
+
+function getCookieConfig() {
+  const frontendOrigin = process.env.FRONTEND_ORIGIN ?? '';
+  const defaultSameSite: CookieSameSite = frontendOrigin.startsWith('http://localhost')
+    ? 'lax'
+    : 'none';
+  const sameSite =
+    (process.env.AUTH_COOKIE_SAME_SITE as CookieSameSite | undefined) ??
+    defaultSameSite;
+  const secure =
+    process.env.AUTH_COOKIE_SECURE !== undefined
+      ? process.env.AUTH_COOKIE_SECURE === 'true'
+      : sameSite === 'none';
+
+  return {
+    sameSite,
+    secure,
+    domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+  };
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -24,11 +46,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
-    const isProd = process.env.NODE_ENV === 'production';
+    const cookie = getCookieConfig();
     res.cookie(AUTH_COOKIE_NAME, result.token, {
       httpOnly: true,
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: cookie.sameSite,
+      secure: cookie.secure,
+      domain: cookie.domain,
       maxAge: 1000 * 60 * 60 * 24 * 7,
       path: '/',
     });
@@ -37,11 +60,12 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    const isProd = process.env.NODE_ENV === 'production';
+    const cookie = getCookieConfig();
     res.clearCookie(AUTH_COOKIE_NAME, {
       path: '/',
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: cookie.sameSite,
+      secure: cookie.secure,
+      domain: cookie.domain,
     });
     return { ok: true };
   }

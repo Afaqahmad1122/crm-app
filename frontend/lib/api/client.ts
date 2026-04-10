@@ -3,6 +3,8 @@ import axios, { isAxiosError } from "axios";
 import { ApiError } from "./errors";
 import type { ApiSuccessEnvelope } from "./types";
 
+const AUTH_TOKEN_STORAGE_KEY = "crm_auth_token";
+
 export type ApiRequestInit = {
   body?: unknown;
   headers?: Record<string, string>;
@@ -18,6 +20,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function canUseStorage(): boolean {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+export function getAuthToken(): string | null {
+  if (!canUseStorage()) return null;
+  const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  return token && token.length > 0 ? token : null;
+}
+
+export function setAuthToken(token: string): void {
+  if (!canUseStorage()) return;
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearAuthToken(): void {
+  if (!canUseStorage()) return;
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
 /**
  * Single place for JSON fetch + Nest success wrapper `{ success, data }` + errors.
  */
@@ -31,6 +53,10 @@ export async function apiRequest<T>(
     Accept: "application/json",
     ...(init?.headers ?? {}),
   };
+  const token = getAuthToken();
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   let body: unknown;
   if (
@@ -64,6 +90,9 @@ export async function apiRequest<T>(
     if (isAxiosError(error)) {
       const status = error.response?.status ?? 0;
       const payload = error.response?.data;
+      if (status === 401) {
+        clearAuthToken();
+      }
       throw ApiError.fromResponse(status, payload);
     }
     throw error;

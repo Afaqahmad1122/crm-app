@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
 import { Button } from "@/components/ui/button";
+import { clearAuthToken } from "@/lib/api/client";
 
 export const Navbar = () => {
   const router = useRouter();
@@ -14,6 +15,7 @@ export const Navbar = () => {
     try {
       await authApi.logout();
     } finally {
+      clearAuthToken();
       queryClient.clear();
       router.replace("/login");
       router.refresh();
