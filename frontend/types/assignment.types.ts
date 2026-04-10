@@ -1,13 +1,17 @@
 export interface Assignment {
   id: string;
   customerId: string;
-  assigneeId: string;
-  dueDate?: string;
+  userId: string;
+  assignedAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface AssignmentPayload {
   customerId: string;
-  assigneeId: string;
-  dueDate?: string;
+  userId: string;
 }
 

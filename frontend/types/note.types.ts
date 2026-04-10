@@ -1,12 +1,17 @@
 export interface Note {
   id: string;
   customerId: string;
-  message: string;
+  content: string;
   createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface NotePayload {
   customerId: string;
-  message: string;
+  content: string;
 }
 

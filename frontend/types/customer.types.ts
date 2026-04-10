@@ -1,14 +1,24 @@
 export interface Customer {
   id: string;
-  fullName: string;
+  name: string;
   email: string;
-  phone?: string;
-  status: "lead" | "active" | "inactive";
+  phone?: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: string;
+  updatedAt: string;
+  assignments?: Array<{
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>;
 }
 
 export interface CustomerPayload {
-  fullName: string;
+  name: string;
   email: string;
   phone?: string;
+  status?: "ACTIVE" | "INACTIVE";
 }
 

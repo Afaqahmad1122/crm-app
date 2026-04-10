@@ -2,32 +2,42 @@
 
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
 import type { NotePayload } from "../../types/note.types";
 
 interface NoteFormProps {
   customerId: string;
-  onSubmit: (payload: NotePayload) => void;
+  isSubmitting?: boolean;
+  onSubmit: (payload: NotePayload) => void | Promise<void>;
 }
 
-export const NoteForm = ({ customerId, onSubmit }: NoteFormProps) => {
-  const [message, setMessage] = useState("");
+export const NoteForm = ({
+  customerId,
+  isSubmitting = false,
+  onSubmit,
+}: NoteFormProps) => {
+  const [content, setContent] = useState("");
 
   return (
     <form
       className="space-y-3"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        onSubmit({ customerId, message });
-        setMessage("");
+        const trimmedContent = content.trim();
+        if (!trimmedContent) return;
+        await onSubmit({ customerId, content: trimmedContent });
+        setContent("");
       }}
     >
-      <textarea
-        className="w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-black"
+      <Textarea
         placeholder="Write a note..."
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        required
       />
-      <Button type="submit">Add Note</Button>
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Adding..." : "Add Note"}
+      </Button>
     </form>
   );
 };
