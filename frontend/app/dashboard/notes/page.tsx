@@ -34,9 +34,12 @@ export default function NotesPage() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
 
-  const customersQuery = useApiGet<CustomersResponse>("/customers?page=1&limit=100", {
-    queryKey: ["customers", "notes-options"],
-  });
+  const customersQuery = useApiGet<CustomersResponse>(
+    "/customers?page=1&limit=100",
+    {
+      queryKey: ["customers", "notes-options"],
+    },
+  );
 
   const notesQuery = useApiGet<Note[]>(
     selectedCustomerId ? `/notes/customer/${selectedCustomerId}` : null,
@@ -48,10 +51,12 @@ export default function NotesPage() {
   const addNoteMutation = useApiPost<Note, NotePayload>({
     path: "/notes",
   });
-  const updateNoteMutation = useApiPatch<Note, { id: string; content: string }>({
-    path: (variables) => `/notes/${variables.id}`,
-    body: (variables) => ({ content: variables.content }),
-  });
+  const updateNoteMutation = useApiPatch<Note, { id: string; content: string }>(
+    {
+      path: (variables) => `/notes/${variables.id}`,
+      body: (variables) => ({ content: variables.content }),
+    },
+  );
   const deleteNoteMutation = useApiDelete<{ message: string }, { id: string }>({
     path: (variables) => `/notes/${variables.id}`,
   });
@@ -108,7 +113,9 @@ export default function NotesPage() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    const confirmed = window.confirm("Kya aap is note ko delete karna chahte hain?");
+    const confirmed = window.confirm(
+      "are you sure you want to delete this note?",
+    );
     if (!confirmed) return;
 
     await deleteNoteMutation.mutateAsync({ id: noteId });
@@ -144,7 +151,10 @@ export default function NotesPage() {
 
         <div className="space-y-2">
           <p className="text-sm font-medium">Select Customer</p>
-          <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+          <Select
+            value={selectedCustomerId}
+            onValueChange={setSelectedCustomerId}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Choose customer" />
             </SelectTrigger>
@@ -162,7 +172,10 @@ export default function NotesPage() {
       {selectedCustomerId ? (
         <div className="rounded-lg border p-4">
           <p className="mb-3 text-sm text-muted-foreground">
-            Adding notes for <span className="font-medium text-foreground">{selectedCustomer?.name}</span>
+            Adding notes for{" "}
+            <span className="font-medium text-foreground">
+              {selectedCustomer?.name}
+            </span>
           </p>
           <NoteForm
             customerId={selectedCustomerId}
@@ -199,14 +212,18 @@ export default function NotesPage() {
                   <div className="space-y-2">
                     <Textarea
                       value={editingContent}
-                      onChange={(event) => setEditingContent(event.target.value)}
+                      onChange={(event) =>
+                        setEditingContent(event.target.value)
+                      }
                       rows={3}
                     />
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         onClick={() => void handleUpdateNote()}
-                        disabled={updateNoteMutation.isPending || !editingContent.trim()}
+                        disabled={
+                          updateNoteMutation.isPending || !editingContent.trim()
+                        }
                       >
                         {updateNoteMutation.isPending ? "Saving..." : "Save"}
                       </Button>
