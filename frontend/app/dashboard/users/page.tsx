@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiDelete, useApiGet, useApiPatch, useApiPost } from "@/hooks/api";
+import { asArray } from "@/lib/api/normalize";
 import type { User } from "@/types/user.types";
 
 type UserCreatePayload = {
@@ -64,6 +65,7 @@ export default function UsersPage() {
   const usersQuery = useApiGet<User[]>("/users", {
     queryKey: ["users"],
   });
+  const users = asArray<User>(usersQuery.data);
 
   const createUserMutation = useApiPost<User, UserCreatePayload>({
     path: "/users",
@@ -84,13 +86,13 @@ export default function UsersPage() {
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return usersQuery.data ?? [];
-    return (usersQuery.data ?? []).filter(
+    if (!term) return users;
+    return users.filter(
       (user) =>
         user.name.toLowerCase().includes(term) ||
         user.email.toLowerCase().includes(term),
     );
-  }, [usersQuery.data, search]);
+  }, [users, search]);
 
   const resetForm = () => {
     setName("");

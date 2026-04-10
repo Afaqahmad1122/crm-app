@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiDelete, useApiGet, useApiPost } from "@/hooks/api";
+import { asArray, asPaginated } from "@/lib/api/normalize";
 import type { Assignment } from "@/types/assignment.types";
 import type { Customer } from "@/types/customer.types";
 import type { User } from "@/types/user.types";
@@ -56,6 +57,7 @@ export default function AssignmentsPage() {
   const usersQuery = useApiGet<User[]>("/users", {
     queryKey: ["users"],
   });
+  const users = asArray<User>(usersQuery.data);
 
   // Load customers list used as assign options
   const customersQuery = useApiGet<{ data: Customer[]; meta: { total: number } }>(
@@ -64,6 +66,7 @@ export default function AssignmentsPage() {
       queryKey: ["customers", "assignment-options"],
     },
   );
+  const customersPage = asPaginated<Customer>(customersQuery.data);
 
   // Load assignments only when a user is selected
   const assignmentsQuery = useApiGet<Assignment[]>(
@@ -72,6 +75,7 @@ export default function AssignmentsPage() {
       queryKey: ["assignments", "user", selectedUserId],
     },
   );
+  const assignments = asArray<Assignment>(assignmentsQuery.data);
 
   // Load assignment counters for selected user (assigned/remaining/max)
   const assignmentCountQuery = useApiGet<AssignmentCountResponse>(
@@ -93,11 +97,11 @@ export default function AssignmentsPage() {
   // Customer options = not already assigned to selected user + optional search filter
   const availableCustomers = useMemo(() => {
     const selectedCustomerIds = new Set(
-      (assignmentsQuery.data ?? []).map((assignment) => assignment.customerId),
+      assignments.map((assignment) => assignment.customerId),
     );
     const term = customerSearch.trim().toLowerCase();
 
-    return (customersQuery.data?.data ?? []).filter((customer) => {
+    return customersPage.data.filter((customer) => {
       const matchesSearch =
         !term ||
         customer.name.toLowerCase().includes(term) ||
@@ -105,10 +109,10 @@ export default function AssignmentsPage() {
       const notAssigned = !selectedCustomerIds.has(customer.id);
       return matchesSearch && notAssigned;
     });
-  }, [assignmentsQuery.data, customerSearch, customersQuery.data?.data]);
+  }, [assignments, customerSearch, customersPage.data]);
 
   // Derive selected user details for header text
-  const selectedUser = (usersQuery.data ?? []).find((user) => user.id === selectedUserId);
+  const selectedUser = users.find((user) => user.id === selectedUserId);
 
   // Keep assignment-related screens in sync after mutations
   const refreshAssignmentData = async () => {
@@ -163,7 +167,7 @@ export default function AssignmentsPage() {
               <SelectValue placeholder="Choose user" />
             </SelectTrigger>
             <SelectContent>
-              {(usersQuery.data ?? []).map((user) => (
+              {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name} ({user.role})
                 </SelectItem>
@@ -247,7 +251,7 @@ export default function AssignmentsPage() {
           isLoading={assignmentsQuery.isLoading}
           isError={assignmentsQuery.isError}
           errorMessage={assignmentsQuery.error?.message}
-          isEmpty={(assignmentsQuery.data ?? []).length === 0}
+          isEmpty={assignments.length === 0}
           emptyTitle="No assignments yet"
           emptyDescription="Assign a customer to get started."
           onRetry={() => assignmentsQuery.refetch()}
@@ -265,7 +269,7 @@ export default function AssignmentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(assignmentsQuery.data ?? []).map((assignment) => (
+                {assignments.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell className="font-medium">
                       {assignment.customer?.name ?? assignment.customerId}

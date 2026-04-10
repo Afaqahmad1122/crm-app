@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useApiDelete, useApiGet, useApiPatch, useApiPost } from "@/hooks/api";
+import { asArray, asPaginated } from "@/lib/api/normalize";
 import type { Customer } from "@/types/customer.types";
 import type { Note, NotePayload } from "@/types/note.types";
 
@@ -40,6 +41,7 @@ export default function NotesPage() {
       queryKey: ["customers", "notes-options"],
     },
   );
+  const customersPage = asPaginated<Customer>(customersQuery.data);
 
   const notesQuery = useApiGet<Note[]>(
     selectedCustomerId ? `/notes/customer/${selectedCustomerId}` : null,
@@ -47,6 +49,7 @@ export default function NotesPage() {
       queryKey: ["notes", "customer", selectedCustomerId],
     },
   );
+  const notes = asArray<Note>(notesQuery.data);
 
   const addNoteMutation = useApiPost<Note, NotePayload>({
     path: "/notes",
@@ -63,17 +66,17 @@ export default function NotesPage() {
 
   const filteredCustomers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return customersQuery.data?.data ?? [];
+    if (!term) return customersPage.data;
 
-    return (customersQuery.data?.data ?? []).filter((customer) => {
+    return customersPage.data.filter((customer) => {
       return (
         customer.name.toLowerCase().includes(term) ||
         customer.email.toLowerCase().includes(term)
       );
     });
-  }, [customersQuery.data?.data, search]);
+  }, [customersPage.data, search]);
 
-  const selectedCustomer = (customersQuery.data?.data ?? []).find(
+  const selectedCustomer = customersPage.data.find(
     (customer) => customer.id === selectedCustomerId,
   );
 
@@ -199,14 +202,14 @@ export default function NotesPage() {
           isLoading={notesQuery.isLoading}
           isError={notesQuery.isError}
           errorMessage={notesQuery.error?.message}
-          isEmpty={(notesQuery.data ?? []).length === 0}
+          isEmpty={notes.length === 0}
           emptyTitle="No notes yet"
           emptyDescription="Add your first note for this customer."
           onRetry={() => notesQuery.refetch()}
           loadingText="Loading notes..."
         >
           <div className="space-y-2 rounded-lg border p-3">
-            {(notesQuery.data ?? []).map((note) => (
+            {notes.map((note) => (
               <div key={note.id} className="rounded-md border p-3">
                 {editingNoteId === note.id ? (
                   <div className="space-y-2">

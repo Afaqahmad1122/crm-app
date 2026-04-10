@@ -26,7 +26,8 @@ function bodyWithoutToken(parsed: unknown): string {
   if (!isRecord(parsed) || !isRecord(parsed.data) || !("token" in parsed.data)) {
     return JSON.stringify(parsed);
   }
-  const { token: _t, ...dataRest } = parsed.data as Record<string, unknown>;
+  const dataRest = { ...(parsed.data as Record<string, unknown>) };
+  delete dataRest.token;
   return JSON.stringify({ ...parsed, data: dataRest });
 }
 

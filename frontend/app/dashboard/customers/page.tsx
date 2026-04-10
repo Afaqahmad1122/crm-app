@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiDelete, useApiGet, useApiPatch, useApiPost } from "@/hooks/api";
+import { asArray, asPaginated } from "@/lib/api/normalize";
 import type { Customer, CustomerPayload } from "@/types/customer.types";
 import type { Note, NotePayload } from "@/types/note.types";
 import type { User } from "@/types/user.types";
@@ -108,11 +109,13 @@ export default function CustomersPage() {
     queryKey: ["customers", page, searchTerm],
     placeholderData: (previousData) => previousData,
   });
+  const customersPage = asPaginated<Customer>(customersQuery.data);
 
   // All users: populate the Assign dropdown.
   const usersQuery = useApiGet<User[]>("/users", {
     queryKey: ["users"],
   });
+  const users = asArray<User>(usersQuery.data);
 
   // Notes for the currently opened customer; request disabled until notesCustomer is set (null URL).
   const notesQuery = useApiGet<Note[]>(
@@ -121,6 +124,7 @@ export default function CustomersPage() {
       queryKey: ["customer-notes", notesCustomer?.id],
     },
   );
+  const notes = asArray<Note>(notesQuery.data);
 
   // Mutations: POST/PATCH/DELETE/POST for server actions; hooks expose isPending, error, mutateAsync.
   const createCustomerMutation = useApiPost<Customer, CustomerPayload>({
@@ -155,8 +159,8 @@ export default function CustomersPage() {
   });
 
   // Normalized list + meta for the table and CrmPagination.
-  const customers = customersQuery.data?.data ?? [];
-  const paginationMeta = customersQuery.data?.meta;
+  const customers = customersPage.data;
+  const paginationMeta = customersPage.meta as CustomersListResponse["meta"] | undefined;
 
   /** Refetch every query whose key starts with ["customers"] (all pages/searches). */
   const refreshCustomers = async () => {
@@ -423,7 +427,7 @@ export default function CustomersPage() {
               <SelectValue placeholder="Select user" />
             </SelectTrigger>
             <SelectContent>
-              {(usersQuery.data ?? []).map((user) => (
+              {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name} ({user.email})
                 </SelectItem>
@@ -487,10 +491,10 @@ export default function CustomersPage() {
               <p className="text-sm text-red-700">
                 {notesQuery.error?.message}
               </p>
-            ) : (notesQuery.data ?? []).length === 0 ? (
+            ) : notes.length === 0 ? (
               <p className="text-sm text-muted-foreground">No notes yet.</p>
             ) : (
-              (notesQuery.data ?? []).map((note) => (
+              notes.map((note) => (
                 <div key={note.id} className="rounded-md border p-2">
                   <p className="text-sm">{note.content}</p>
                   <p className="mt-1 text-xs text-muted-foreground">

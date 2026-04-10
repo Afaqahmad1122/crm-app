@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { customersApi } from "@/api/customers.api";
 import { usersApi } from "@/api/users.api";
+import { asArray, asPaginated } from "@/lib/api/normalize";
 import type { User } from "@/types/user.types";
 
 interface DashboardStatsData {
@@ -10,10 +11,6 @@ interface DashboardStatsData {
   users: number;
   assignments: number;
 }
-
-type ApiEnvelope<T> = {
-  data: T;
-};
 
 export function DashboardStats() {
   const [stats, setStats] = useState<DashboardStatsData>({
@@ -35,34 +32,21 @@ export function DashboardStats() {
           usersApi.list(),
         ]);
 
-        const customersPayload =
-          typeof customersRes === "object" &&
-          customersRes !== null &&
-          "data" in customersRes
-            ? (customersRes as ApiEnvelope<{ meta?: { total?: number } }>).data
-            : customersRes;
-
-        const usersPayload =
-          typeof usersRes === "object" && usersRes !== null && "data" in usersRes
-            ? (usersRes as ApiEnvelope<User[]>).data
-            : usersRes;
-
-        const users = Array.isArray(usersPayload) ? usersPayload : [];
+        const customersPage = asPaginated<unknown>(customersRes);
+        const users = asArray<User>(usersRes);
 
         const assignmentsCount = users.reduce(
           (sum: number, user: User) => sum + (user._count?.assignments ?? 0),
           0,
         );
 
+        const totalCustomers =
+          typeof customersPage.meta?.total === "number"
+            ? customersPage.meta.total
+            : 0;
+
         setStats({
-          customers:
-            typeof customersPayload === "object" &&
-            customersPayload !== null &&
-            "meta" in customersPayload &&
-            typeof (customersPayload as { meta?: { total?: number } }).meta
-              ?.total === "number"
-              ? (customersPayload as { meta: { total: number } }).meta.total
-              : 0,
+          customers: totalCustomers,
           users: users.length,
           assignments: assignmentsCount,
         });
