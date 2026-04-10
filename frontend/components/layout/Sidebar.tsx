@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Customers", href: "/dashboard/customers" },
+  { label: "Notes", href: "/dashboard/notes" },
   { label: "Users", href: "/dashboard/users" },
   { label: "Assignments", href: "/dashboard/assignments" },
 ];
@@ -20,7 +21,7 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-60 rounded-xl border bg-white p-3 shadow-sm">
+    <aside className="sticky top-20 h-[calc(100vh-6rem)] w-60 overflow-y-auto rounded-xl border bg-white p-3 shadow-sm">
       <ul className="space-y-1 text-sm">
         {NAV_ITEMS.map((item) => (
           <li key={item.href}>
