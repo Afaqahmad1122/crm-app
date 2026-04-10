@@ -129,6 +129,19 @@ Debounced search
 Optimistic updates
 Reusable components
 
+Frontend Implementation Notes (Current)
+- Reusable API hooks added with React Query:
+  - `useApiGet`
+  - `useApiPost`
+  - `useApiPut`
+  - `useApiPatch`
+  - `useApiDelete`
+  - Shared base mutation hook: `useApiMutation`
+- Reusable UI components added:
+  - `CrmPagination` for paginated lists (supports prev/next, page numbers, ellipsis, item range text)
+  - `QueryState` for common loading/error/empty/success rendering
+- `QueryClientProvider` integrated globally using `AppProviders` in frontend layout.
+
 Technical Requirements
 Backend:
 
