@@ -14,3 +14,19 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  organizationName: string;
+}
+
+export interface RegisterResponse {
+  token: string;
+  user: AuthUser;
+  organization: {
+    id: string;
+    name: string;
+  };
+}
+

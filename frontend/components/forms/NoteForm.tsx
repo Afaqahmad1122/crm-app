@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
 import type { NotePayload } from "../../types/note.types";
 
 interface NoteFormProps {
