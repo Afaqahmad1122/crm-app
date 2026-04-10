@@ -1,5 +1,6 @@
- "use client";
+"use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/api/auth.api";
 import { Button } from "@/components/ui/button";
@@ -20,11 +21,15 @@ export const Navbar = () => {
     <header className="border-b bg-white">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <span className="text-sm font-semibold">CRM App</span>
-        <Button variant="outline" size="sm" onClick={onLogout}>
-          Logout
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/profile">Profile</Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={onLogout}>
+            Logout
+          </Button>
+        </div>
       </div>
     </header>
   );
 };
-
