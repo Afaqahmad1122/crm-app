@@ -7,6 +7,7 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { NotesModule } from './modules/notes/notes.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AssignmentsModule } from './modules/assignments/assignments.module';
     UsersModule,
     CustomersModule,
     AssignmentsModule,
+    NotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
