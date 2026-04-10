@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { customersApi } from "@/api/customers.api";
-import { usersApi } from "@/api/users.api";
+import { apiGet } from "@/lib/api/client";
 import { asArray, asPaginated } from "@/lib/api/normalize";
 import type { User } from "@/types/user.types";
 
@@ -28,8 +27,8 @@ export function DashboardStats() {
 
       try {
         const [customersRes, usersRes] = await Promise.all([
-          customersApi.list({ page: 1, limit: 1 }),
-          usersApi.list(),
+          apiGet<unknown>("/customers?page=1&limit=1"),
+          apiGet<unknown>("/users"),
         ]);
 
         const customersPage = asPaginated<unknown>(customersRes);
@@ -43,7 +42,7 @@ export function DashboardStats() {
         const totalCustomers =
           typeof customersPage.meta?.total === "number"
             ? customersPage.meta.total
-            : 0;
+            : customersPage.data.length;
 
         setStats({
           customers: totalCustomers,

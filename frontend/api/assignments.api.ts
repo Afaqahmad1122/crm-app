@@ -1,17 +1,22 @@
-import { apiClient } from "./axios";
+import { apiGet, apiRequest } from "@/lib/api/client";
+import { asArray } from "@/lib/api/normalize";
 import type {
   Assignment,
   AssignmentPayload,
 } from "../types/assignment.types";
 
 export const assignmentsApi = {
-  list: async () => {
-    const { data } = await apiClient.get<Assignment[]>("/assignments");
-    return data;
+  listByUser: async (userId: string) => {
+    const response = await apiGet<unknown>(`/assignments/user/${userId}`);
+    return asArray<Assignment>(response);
   },
   create: async (payload: AssignmentPayload) => {
-    const { data } = await apiClient.post<Assignment>("/assignments", payload);
-    return data;
+    return apiRequest<Assignment>("POST", "/assignments", { body: payload });
+  },
+  remove: async (payload: AssignmentPayload) => {
+    return apiRequest<{ message: string }>("DELETE", "/assignments", {
+      body: payload,
+    });
   },
 };
 

@@ -1,14 +1,14 @@
-import { apiClient } from "./axios";
+import { apiGet, apiRequest } from "@/lib/api/client";
+import { asArray } from "@/lib/api/normalize";
 import type { Note, NotePayload } from "../types/note.types";
 
 export const notesApi = {
   listByCustomer: async (customerId: string) => {
-    const { data } = await apiClient.get<Note[]>(`/customers/${customerId}/notes`);
-    return data;
+    const response = await apiGet<unknown>(`/notes/customer/${customerId}`);
+    return asArray<Note>(response);
   },
   create: async (payload: NotePayload) => {
-    const { data } = await apiClient.post<Note>("/notes", payload);
-    return data;
+    return apiRequest<Note>("POST", "/notes", { body: payload });
   },
 };
 
