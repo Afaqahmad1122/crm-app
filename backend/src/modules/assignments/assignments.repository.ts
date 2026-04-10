@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -25,45 +26,57 @@ export class AssignmentsRepository {
     if (existing)
       throw new ConflictException('Customer already assigned to this user');
 
-    // Concurrency-safe assignment using transaction + raw SQL lock
-    return await this.prisma.$transaction(async (tx) => {
-      // Lock assignment rows first (PostgreSQL forbids COUNT(*) ... FOR UPDATE in one query)
-      const result = await tx.$queryRaw<[{ count: bigint }]>`
-          SELECT COUNT(*)::bigint AS count
-          FROM (
-            SELECT ca.id
-            FROM "CustomerAssignment" ca
-            INNER JOIN "Customer" c ON c.id = ca."customerId"
-            WHERE ca."userId" = ${userId}
-              AND c."deletedAt" IS NULL
-              AND c."organizationId" = ${organizationId}
-            FOR UPDATE OF ca
-          ) AS locked
-        `;
+    // Serialize per user: locking only assignment rows misses the "zero rows" case,
+    // so concurrent requests could all pass the count check. Lock the User row first.
+    return await this.prisma.$transaction(
+      async (tx) => {
+        const userLock = await tx.$queryRaw<{ x: number }[]>`
+        SELECT 1 AS x
+        FROM "User" u
+        WHERE u.id = ${userId} AND u."organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+        if (userLock.length === 0) {
+          throw new NotFoundException('User not found');
+        }
 
-      const currentCount = Number(result[0].count);
-
-      if (currentCount >= MAX_CUSTOMERS_PER_USER) {
-        throw new BadRequestException(
-          `User already has ${MAX_CUSTOMERS_PER_USER} active customers assigned`,
-        );
-      }
-
-      // Safe to assign now
-      const assignment = await tx.customerAssignment.create({
-        data: { userId, customerId },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true },
+        const currentCount = await tx.customerAssignment.count({
+          where: {
+            userId,
+            customer: {
+              organizationId,
+              deletedAt: null,
+            },
           },
-          customer: {
-            select: { id: true, name: true, email: true, status: true },
-          },
-        },
-      });
+        });
 
-      return assignment;
-    });
+        if (currentCount >= MAX_CUSTOMERS_PER_USER) {
+          throw new BadRequestException(
+            `User already has ${MAX_CUSTOMERS_PER_USER} active customers assigned`,
+          );
+        }
+
+        const assignment = await tx.customerAssignment.create({
+          data: { userId, customerId },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+            customer: {
+              select: { id: true, name: true, email: true, status: true },
+            },
+          },
+        });
+
+        return assignment;
+      },
+      {
+        // Many parallel assigns for the same user queue on the User row lock; default 5s
+        // interactive timeout surfaces as 500 before the 6th can return 400.
+        maxWait: 15_000,
+        timeout: 60_000,
+      },
+    );
   }
 
   async unassignCustomer(userId: string, customerId: string) {
