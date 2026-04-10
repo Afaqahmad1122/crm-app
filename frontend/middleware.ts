@@ -9,6 +9,8 @@ const PUBLIC_PATH_PREFIXES = [
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
+  /** Same-origin session cookie (Vercel); must stay public so login can set it before middleware sees a token */
+  "/api/auth/session",
 ];
 
 function isPublicPath(pathname: string) {

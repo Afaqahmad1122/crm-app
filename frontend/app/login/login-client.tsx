@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { authApi } from "@/api/auth.api";
+import { setStoredAuthToken } from "@/lib/auth/token-storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,7 +34,17 @@ export function LoginClient() {
     setError(null);
     setIsLoading(true);
     try {
-      await authApi.login({ email, password });
+      const { token } = await authApi.login({ email, password });
+      setStoredAuthToken(token);
+      const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+        credentials: "include",
+      });
+      if (!sessionRes.ok) {
+        throw new Error("Could not start session");
+      }
       router.replace(next);
     } catch (err: unknown) {
       const message =

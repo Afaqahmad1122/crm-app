@@ -1,3 +1,4 @@
+import { getStoredAuthToken } from "@/lib/auth/token-storage";
 import { getApiBaseUrl } from "./config";
 import axios, { isAxiosError } from "axios";
 import { ApiError } from "./errors";
@@ -27,8 +28,11 @@ export async function apiRequest<T>(
   init?: ApiRequestInit,
 ): Promise<T> {
   const url = joinUrl(getApiBaseUrl(), path);
+  const bearer =
+    typeof window !== "undefined" ? getStoredAuthToken() : null;
   const headers: Record<string, string | undefined> = {
     Accept: "application/json",
+    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
     ...(init?.headers ?? {}),
   };
 
