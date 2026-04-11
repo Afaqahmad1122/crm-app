@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTH_COOKIE_NAME = "crm_token";
+const AUTH_ACCESS_COOKIE = "crm_token";
+const AUTH_REFRESH_COOKIE = "crm_refresh";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const IS_PROXY_MODE = API_BASE.startsWith("/api/proxy");
@@ -26,8 +27,10 @@ export function middleware(request: NextRequest) {
   if (isPublicPath(pathname)) return NextResponse.next();
   if (!IS_PROXY_MODE) return NextResponse.next();
 
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) {
+  const hasSession =
+    request.cookies.get(AUTH_ACCESS_COOKIE)?.value ||
+    request.cookies.get(AUTH_REFRESH_COOKIE)?.value;
+  if (!hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

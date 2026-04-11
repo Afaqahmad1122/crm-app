@@ -28,8 +28,25 @@ model User {
   organization   Organization @relation(fields: [organizationId], references: [id])
   assignments    CustomerAssignment[]
   notes          Note[]
+  refreshTokens  RefreshToken[]
 
   @@index([organizationId])
+}
+
+/// Opaque refresh tokens (hashed at rest), rotation + reuse detection via familyId.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  familyId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
 }
 
 model Customer {

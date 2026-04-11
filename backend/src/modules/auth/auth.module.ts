@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Module({
   imports: [
@@ -13,12 +14,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') },
+        signOptions: {
+          expiresIn: config.get<string>('JWT_EXPIRES_IN') ?? '15m',
+        },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, RefreshTokenService, JwtStrategy],
+  exports: [AuthService, RefreshTokenService],
 })
 export class AuthModule {}

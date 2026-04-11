@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
+import { setAuthToken } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +19,7 @@ import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
@@ -30,8 +33,16 @@ export default function RegisterPage() {
     setError(null);
     setIsLoading(true);
     try {
-      await authApi.register({ name, organizationName, email, password });
-      router.replace("/login");
+      const res = await authApi.register({
+        name,
+        organizationName,
+        email,
+        password,
+      });
+      setAuthToken(res.accessToken);
+      queryClient.clear();
+      router.replace("/dashboard");
+      router.refresh();
     } catch (err: unknown) {
       const message =
         typeof err === "object" && err !== null && "message" in err

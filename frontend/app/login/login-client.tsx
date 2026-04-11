@@ -37,8 +37,9 @@ export function LoginClient() {
     setIsLoading(true);
     try {
       const response = await authApi.login({ email, password });
-      if (response.token) {
-        setAuthToken(response.token);
+      const access = response.accessToken ?? response.token;
+      if (access) {
+        setAuthToken(access);
       }
       queryClient.clear();
       router.replace(next);

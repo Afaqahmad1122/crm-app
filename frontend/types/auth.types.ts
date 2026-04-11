@@ -11,6 +11,8 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   user: AuthUser;
+  accessToken: string;
+  /** @deprecated use accessToken */
   token?: string;
 }
 
@@ -27,4 +29,5 @@ export interface RegisterResponse {
     id: string;
     name: string;
   };
+  accessToken: string;
 }

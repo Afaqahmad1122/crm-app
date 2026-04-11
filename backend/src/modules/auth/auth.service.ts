@@ -8,22 +8,27 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenService } from './refresh-token.service';
+
+export type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+};
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly refreshTokens: RefreshTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
-    // Check if email already exists
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (existing) throw new ConflictException('Email already in use');
 
-    // Create organization + user in one transaction
     const result = await this.prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: { name: dto.organizationName },
@@ -44,14 +49,15 @@ export class AuthService {
       return { org, user };
     });
 
-    const token = this.signToken(
+    const { accessToken, refreshToken } = await this.issueTokenPair(
       result.user.id,
       result.user.email,
       result.user.organizationId,
     );
 
     return {
-      token,
+      accessToken,
+      refreshToken,
       user: this.excludePassword(result.user),
       organization: result.org,
     };
@@ -68,12 +74,43 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
-    const token = this.signToken(user.id, user.email, user.organizationId);
+    await this.refreshTokens.revokeAllForUser(user.id);
+
+    const { accessToken, refreshToken } = await this.issueTokenPair(
+      user.id,
+      user.email,
+      user.organizationId,
+    );
 
     return {
-      token,
+      accessToken,
+      refreshToken,
       user: this.excludePassword(user),
     };
+  }
+
+  async refreshFromRaw(refreshRaw: string): Promise<TokenPair> {
+    const { raw: newRefresh, userId } =
+      await this.refreshTokens.rotate(refreshRaw);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const accessToken = this.signAccessToken(
+      user.id,
+      user.email,
+      user.organizationId,
+    );
+
+    return { accessToken, refreshToken: newRefresh };
+  }
+
+  async logout(refreshRaw: string | undefined): Promise<void> {
+    if (refreshRaw) {
+      await this.refreshTokens.revokeRaw(refreshRaw);
+    }
   }
 
   async getMe(userId: string) {
@@ -85,7 +122,21 @@ export class AuthService {
     return this.excludePassword(user);
   }
 
-  private signToken(userId: string, email: string, organizationId: string) {
+  private async issueTokenPair(
+    userId: string,
+    email: string,
+    organizationId: string,
+  ): Promise<TokenPair> {
+    const accessToken = this.signAccessToken(userId, email, organizationId);
+    const { raw } = await this.refreshTokens.createSession(userId);
+    return { accessToken, refreshToken: raw };
+  }
+
+  private signAccessToken(
+    userId: string,
+    email: string,
+    organizationId: string,
+  ) {
     return this.jwt.sign({
       sub: userId,
       email,
