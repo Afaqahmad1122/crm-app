@@ -4,6 +4,7 @@ const AUTH_ACCESS_COOKIE = "crm_token";
 const AUTH_REFRESH_COOKIE = "crm_refresh";
 
 const PUBLIC_PATH_PREFIXES = [
+  "/api",
   "/login",
   "/register",
   "/_next",
