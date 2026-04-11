@@ -33,12 +33,17 @@ export function clearAuthToken(): void {
 }
 
 function shouldAttemptRefreshOn401(path: string): boolean {
-  return (
-    path !== "/auth/login" &&
-    path !== "/auth/register" &&
-    path !== "/auth/refresh" &&
-    path !== "/auth/logout"
-  );
+  const noRefreshPaths = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/refresh",
+    "/auth/logout",
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/refresh",
+    "/api/auth/logout",
+  ];
+  return !noRefreshPaths.includes(path);
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -46,9 +51,10 @@ async function refreshAccessToken(): Promise<boolean> {
 
   refreshInFlight = (async () => {
     try {
-      const url = joinUrl(getApiBaseUrl(), "/auth/refresh");
+      // Use the dedicated Next.js auth route so the refreshed cookies are
+      // re-set with SameSite=lax and the correct Vercel domain.
       const res = await axios.request({
-        url,
+        url: "/api/auth/refresh",
         method: "POST",
         headers: { Accept: "application/json" },
         withCredentials: true,

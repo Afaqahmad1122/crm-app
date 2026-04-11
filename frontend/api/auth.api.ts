@@ -1,3 +1,5 @@
+import axios, { isAxiosError } from "axios";
+import { ApiError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/client";
 import type {
   AuthUser,
@@ -7,19 +9,51 @@ import type {
   RegisterResponse,
 } from "@/types/auth.types";
 
-export const authApi = {
-  login: async (payload: LoginPayload) => {
-    return apiRequest<LoginResponse>("POST", "/auth/login", { body: payload });
-  },
-  register: async (payload: RegisterPayload) => {
-    return apiRequest<RegisterResponse>("POST", "/auth/register", {
-      body: payload,
+/**
+ * Auth endpoints go to dedicated Next.js route handlers (/api/auth/*)
+ * instead of the generic proxy. Those handlers re-set the cookies via
+ * NextResponse.cookies.set() with SameSite=lax so all browsers accept them.
+ */
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function unwrap<T>(data: unknown): T {
+  if (isRecord(data) && data.success === true && "data" in data) {
+    return (data as { success: true; data: T }).data;
+  }
+  return data as T;
+}
+
+async function authPost<T>(path: string, body?: unknown): Promise<T> {
+  try {
+    const res = await axios.post(path, body, {
+      withCredentials: true,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
     });
-  },
-  logout: async () => {
-    return apiRequest<{ ok: true }>("POST", "/auth/logout");
-  },
-  me: async () => {
-    return apiRequest<AuthUser>("GET", "/auth/me");
-  },
+    return unwrap<T>(res.data);
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      throw ApiError.fromResponse(
+        err.response?.status ?? 0,
+        err.response?.data,
+      );
+    }
+    throw err;
+  }
+}
+
+export const authApi = {
+  login: (payload: LoginPayload) =>
+    authPost<LoginResponse>("/api/auth/login", payload),
+
+  register: (payload: RegisterPayload) =>
+    authPost<RegisterResponse>("/api/auth/register", payload),
+
+  logout: () => authPost<{ ok: true }>("/api/auth/logout"),
+
+  refresh: () => authPost<{ accessToken: string }>("/api/auth/refresh"),
+
+  me: () => apiRequest<AuthUser>("GET", "/auth/me"),
 };
