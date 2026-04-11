@@ -1,6 +1,6 @@
 import axios, { isAxiosError } from "axios";
 import { ApiError } from "@/lib/api/errors";
-import { apiRequest } from "@/lib/api/client";
+import { apiRequest, setAccessToken, clearAuthToken } from "@/lib/api/client";
 import type {
   AuthUser,
   LoginPayload,
@@ -45,13 +45,26 @@ async function authPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export const authApi = {
-  login: (payload: LoginPayload) =>
-    authPost<LoginResponse>("/api/auth/login", payload),
+  login: async (payload: LoginPayload): Promise<LoginResponse> => {
+    const result = await authPost<LoginResponse>("/api/auth/login", payload);
+    setAccessToken(result.accessToken);
+    return result;
+  },
 
-  register: (payload: RegisterPayload) =>
-    authPost<RegisterResponse>("/api/auth/register", payload),
+  register: async (payload: RegisterPayload): Promise<RegisterResponse> => {
+    const result = await authPost<RegisterResponse>(
+      "/api/auth/register",
+      payload,
+    );
+    setAccessToken(result.accessToken);
+    return result;
+  },
 
-  logout: () => authPost<{ ok: true }>("/api/auth/logout"),
+  logout: async (): Promise<{ ok: true }> => {
+    const result = await authPost<{ ok: true }>("/api/auth/logout");
+    clearAuthToken();
+    return result;
+  },
 
   refresh: () => authPost<{ accessToken: string }>("/api/auth/refresh"),
 

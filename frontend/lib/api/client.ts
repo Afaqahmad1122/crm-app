@@ -5,6 +5,20 @@ import type { ApiSuccessEnvelope } from "./types";
 
 let refreshInFlight: Promise<boolean> | null = null;
 
+// In-memory access token. Populated after login/register/refresh.
+// Sent as Authorization: Bearer on every request so the backend's JWT
+// guard works even when cookies can't be forwarded through the proxy.
+// Lost on hard-refresh; the refresh-token flow (httpOnly cookie) recovers it.
+let _accessToken: string | null = null;
+
+export function setAccessToken(token: string): void {
+  _accessToken = token;
+}
+
+export function clearAuthToken(): void {
+  _accessToken = null;
+}
+
 export type ApiRequestInit = {
   body?: unknown;
   headers?: Record<string, string>;
@@ -25,11 +39,6 @@ function unwrapEnvelope<T>(payload: unknown): T {
     return (payload as ApiSuccessEnvelope<T>).data;
   }
   return payload as T;
-}
-
-export function clearAuthToken(): void {
-  // Auth state is cookie-based (httpOnly cookies set by backend).
-  // Keep this function as a compatibility no-op for existing callers.
 }
 
 function shouldAttemptRefreshOn401(path: string): boolean {
@@ -62,6 +71,7 @@ async function refreshAccessToken(): Promise<boolean> {
       });
       const data = unwrapEnvelope<{ accessToken?: string }>(res.data);
       if (data?.accessToken) {
+        setAccessToken(data.accessToken);
         return true;
       }
       return false;
@@ -87,6 +97,9 @@ export async function apiRequest<T>(
   const url = joinUrl(getApiBaseUrl(), path);
   const headers: Record<string, string | undefined> = {
     Accept: "application/json",
+    // Send stored access token as Bearer so the backend's JWT guard works
+    // without relying on the proxy to forward httpOnly cookies.
+    ...(_accessToken ? { Authorization: `Bearer ${_accessToken}` } : {}),
     ...(init?.headers ?? {}),
   };
 
