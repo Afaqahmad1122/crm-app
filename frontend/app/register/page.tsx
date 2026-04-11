@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
-import { setAuthToken } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,13 +32,12 @@ export default function RegisterPage() {
     setError(null);
     setIsLoading(true);
     try {
-      const res = await authApi.register({
+      await authApi.register({
         name,
         organizationName,
         email,
         password,
       });
-      setAuthToken(res.accessToken);
       queryClient.clear();
       router.replace("/dashboard");
       router.refresh();

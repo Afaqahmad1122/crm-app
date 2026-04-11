@@ -8,7 +8,7 @@ import { authApi } from "@/api/auth.api";
 import { Layout } from "@/components/layout/Layout";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError } from "@/lib/api/errors";
-import { clearAuthToken, getAuthToken } from "@/lib/api/client";
+import { clearAuthToken } from "@/lib/api/client";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -18,21 +18,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const token = getAuthToken();
   const meQuery = useQuery({
     queryKey: ["auth", "me", "guard"],
     queryFn: authApi.me,
-    enabled: Boolean(token),
+    enabled: true,
     retry: false,
     refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (!token) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-      return;
-    }
-
     if (!meQuery.isError) return;
 
     const isUnauthorized =
@@ -41,9 +35,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       clearAuthToken();
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [token, pathname, router, meQuery.isError, meQuery.error]);
+  }, [pathname, router, meQuery.isError, meQuery.error]);
 
-  if (!token || meQuery.isLoading) {
+  if (meQuery.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         <Spinner className="mr-2 size-4" />

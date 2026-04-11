@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { setAuthToken } from "@/lib/api/client";
 
 export function LoginClient() {
   const router = useRouter();
@@ -36,11 +35,7 @@ export function LoginClient() {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await authApi.login({ email, password });
-      const access = response.accessToken ?? response.token;
-      if (access) {
-        setAuthToken(access);
-      }
+      await authApi.login({ email, password });
       queryClient.clear();
       router.replace(next);
       router.refresh();
