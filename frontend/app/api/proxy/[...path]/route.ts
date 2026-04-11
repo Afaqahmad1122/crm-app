@@ -28,6 +28,7 @@ function copyResponseHeaders(headers: Headers): Headers {
     const lowerKey = key.toLowerCase();
     if (
       lowerKey === "content-length" ||
+      lowerKey === "content-encoding" ||
       lowerKey === "transfer-encoding" ||
       lowerKey === "connection" ||
       lowerKey === "set-cookie"
@@ -62,6 +63,9 @@ async function forwardRequest(
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete("host");
   requestHeaders.delete("content-length");
+  // Let upstream choose identity encoding; Node fetch can transparently decode
+  // compressed payloads, so forwarding browser accept-encoding can corrupt responses.
+  requestHeaders.delete("accept-encoding");
 
   const body =
     request.method === "GET" || request.method === "HEAD"
