@@ -4,6 +4,7 @@ import { ApiError } from "./errors";
 import type { ApiSuccessEnvelope } from "./types";
 
 const AUTH_TOKEN_STORAGE_KEY = "crm_auth_token";
+const AUTH_TOKEN_COOKIE_KEY = "crm_auth_token";
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -33,6 +34,16 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
+function setAuthTokenCookie(token: string): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AUTH_TOKEN_COOKIE_KEY}=${encodeURIComponent(token)}; Path=/; SameSite=Lax`;
+}
+
+function clearAuthTokenCookie(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AUTH_TOKEN_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
 export function getAuthToken(): string | null {
   if (!canUseStorage()) return null;
   const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -40,13 +51,17 @@ export function getAuthToken(): string | null {
 }
 
 export function setAuthToken(token: string): void {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  if (canUseStorage()) {
+    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  }
+  setAuthTokenCookie(token);
 }
 
 export function clearAuthToken(): void {
-  if (!canUseStorage()) return;
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  if (canUseStorage()) {
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  }
+  clearAuthTokenCookie();
 }
 
 function shouldAttemptRefreshOn401(path: string): boolean {
