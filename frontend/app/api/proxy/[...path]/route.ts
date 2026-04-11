@@ -29,13 +29,27 @@ function copyResponseHeaders(headers: Headers): Headers {
     if (
       lowerKey === "content-length" ||
       lowerKey === "transfer-encoding" ||
-      lowerKey === "connection"
+      lowerKey === "connection" ||
+      lowerKey === "set-cookie"
     ) {
       return;
     }
     copied.append(key, value);
   });
   return copied;
+}
+
+/**
+ * Strips the Domain attribute from a Set-Cookie header so the browser
+ * applies the cookie to the Vercel origin instead of the Render backend domain.
+ * Also ensures Path=/ is present so the cookie is sent on all requests.
+ */
+function rewriteSetCookieForProxy(cookieStr: string): string {
+  let rewritten = cookieStr.replace(/;\s*Domain=[^;]*/gi, "");
+  if (!/;\s*Path=/i.test(rewritten)) {
+    rewritten += "; Path=/";
+  }
+  return rewritten;
 }
 
 async function forwardRequest(
@@ -63,16 +77,15 @@ async function forwardRequest(
   });
 
   const responseHeaders = copyResponseHeaders(upstream.headers);
-  responseHeaders.delete("set-cookie");
 
   if (typeof upstream.headers.getSetCookie === "function") {
     for (const cookie of upstream.headers.getSetCookie()) {
-      responseHeaders.append("set-cookie", cookie);
+      responseHeaders.append("set-cookie", rewriteSetCookieForProxy(cookie));
     }
   } else {
     const cookie = upstream.headers.get("set-cookie");
     if (cookie) {
-      responseHeaders.append("set-cookie", cookie);
+      responseHeaders.append("set-cookie", rewriteSetCookieForProxy(cookie));
     }
   }
 
