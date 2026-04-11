@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function LoginClient() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const next = useMemo(
@@ -36,9 +35,10 @@ export function LoginClient() {
     setIsLoading(true);
     try {
       await authApi.login({ email, password });
+      await authApi.me();
       queryClient.clear();
-      router.replace(next);
-      router.refresh();
+      window.location.assign(next);
+      return;
     } catch (err: unknown) {
       const message =
         typeof err === "object" && err !== null && "message" in err

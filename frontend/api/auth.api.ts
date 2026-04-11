@@ -1,10 +1,11 @@
 import axios, { isAxiosError } from "axios";
 import { ApiError } from "@/lib/api/errors";
-import { apiRequest, setAccessToken, clearAuthToken } from "@/lib/api/client";
+import { apiRequest, clearAuthToken } from "@/lib/api/client";
 import type {
   AuthUser,
   LoginPayload,
   LoginResponse,
+  RefreshResponse,
   RegisterPayload,
   RegisterResponse,
 } from "@/types/auth.types";
@@ -31,6 +32,7 @@ async function authPost<T>(path: string, body?: unknown): Promise<T> {
     const res = await axios.post(path, body, {
       withCredentials: true,
       headers: { "Content-Type": "application/json", Accept: "application/json" },
+      timeout: 15_000,
     });
     return unwrap<T>(res.data);
   } catch (err: unknown) {
@@ -45,20 +47,11 @@ async function authPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export const authApi = {
-  login: async (payload: LoginPayload): Promise<LoginResponse> => {
-    const result = await authPost<LoginResponse>("/api/auth/login", payload);
-    setAccessToken(result.accessToken);
-    return result;
-  },
+  login: (payload: LoginPayload) =>
+    authPost<LoginResponse>("/api/auth/login", payload),
 
-  register: async (payload: RegisterPayload): Promise<RegisterResponse> => {
-    const result = await authPost<RegisterResponse>(
-      "/api/auth/register",
-      payload,
-    );
-    setAccessToken(result.accessToken);
-    return result;
-  },
+  register: (payload: RegisterPayload) =>
+    authPost<RegisterResponse>("/api/auth/register", payload),
 
   logout: async (): Promise<{ ok: true }> => {
     const result = await authPost<{ ok: true }>("/api/auth/logout");
@@ -66,7 +59,7 @@ export const authApi = {
     return result;
   },
 
-  refresh: () => authPost<{ accessToken: string }>("/api/auth/refresh"),
+  refresh: () => authPost<RefreshResponse>("/api/auth/refresh"),
 
   me: () => apiRequest<AuthUser>("GET", "/auth/me"),
 };

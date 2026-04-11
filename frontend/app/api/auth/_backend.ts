@@ -20,6 +20,75 @@ export type ParsedCookie = {
   maxAge?: number;
 };
 
+export const AUTH_ACCESS_COOKIE = "crm_token";
+export const AUTH_REFRESH_COOKIE = "crm_refresh";
+
+const AUTH_COOKIE_NAMES = new Set([AUTH_ACCESS_COOKIE, AUTH_REFRESH_COOKIE]);
+
+function shouldUseSecureCookies(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+export function isAuthCookieName(name: string): boolean {
+  return AUTH_COOKIE_NAMES.has(name);
+}
+
+export function getFrontendAuthCookieOptions(cookie: ParsedCookie): {
+  httpOnly: true;
+  secure: boolean;
+  sameSite: "lax";
+  path: "/";
+  maxAge?: number;
+} {
+  return {
+    httpOnly: true,
+    secure: shouldUseSecureCookies(),
+    sameSite: "lax",
+    path: "/",
+    ...(cookie.maxAge !== undefined ? { maxAge: cookie.maxAge } : {}),
+  };
+}
+
+function omitTokenFields(value: Record<string, unknown>): Record<string, unknown> {
+  const clone = { ...value };
+  delete clone.accessToken;
+  delete clone.token;
+  return clone;
+}
+
+/**
+ * Prevents exposing token values in JSON while still returning useful auth payload.
+ */
+export function sanitizeAuthPayload(payload: unknown): unknown {
+  if (typeof payload !== "object" || payload === null) {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (
+    record.success === true &&
+    typeof record.data === "object" &&
+    record.data !== null
+  ) {
+    return {
+      ...record,
+      data: omitTokenFields(record.data as Record<string, unknown>),
+    };
+  }
+
+  return omitTokenFields(record);
+}
+
+export async function readJsonSafely(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return { success: false, message: text };
+  }
+}
+
 /**
  * Parses a single Set-Cookie header string into its name/value and attributes.
  */

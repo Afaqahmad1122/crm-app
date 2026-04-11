@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  getFrontendAuthCookieOptions,
   getBackendBaseUrl,
   getSetCookieHeaders,
+  isAuthCookieName,
   parseSetCookieHeader,
+  readJsonSafely,
+  sanitizeAuthPayload,
 } from "../_backend";
 
 export const runtime = "nodejs";
@@ -19,26 +23,32 @@ export async function POST(request: NextRequest) {
         Accept: "application/json",
         ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
+      cache: "no-store",
     });
 
-    const data: unknown = await upstream.json();
+    const data = sanitizeAuthPayload(await readJsonSafely(upstream));
 
     if (!upstream.ok) {
-      return NextResponse.json(data, { status: upstream.status });
+      return NextResponse.json(data, {
+        status: upstream.status,
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
-    const res = NextResponse.json(data, { status: upstream.status });
+    const res = NextResponse.json({ ok: true as const }, {
+      status: upstream.status,
+      headers: { "Cache-Control": "no-store" },
+    });
 
     for (const header of getSetCookieHeaders(upstream.headers)) {
       const cookie = parseSetCookieHeader(header);
       if (!cookie) continue;
-      res.cookies.set(cookie.name, cookie.value, {
-        httpOnly: cookie.httpOnly,
-        secure: true,
-        sameSite: "lax",
-        path: cookie.path,
-        ...(cookie.maxAge !== undefined ? { maxAge: cookie.maxAge } : {}),
-      });
+      if (!isAuthCookieName(cookie.name)) continue;
+      res.cookies.set(
+        cookie.name,
+        cookie.value,
+        getFrontendAuthCookieOptions(cookie),
+      );
     }
 
     return res;

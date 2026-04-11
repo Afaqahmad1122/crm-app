@@ -4,20 +4,7 @@ import { ApiError } from "./errors";
 import type { ApiSuccessEnvelope } from "./types";
 
 let refreshInFlight: Promise<boolean> | null = null;
-
-// In-memory access token. Populated after login/register/refresh.
-// Sent as Authorization: Bearer on every request so the backend's JWT
-// guard works even when cookies can't be forwarded through the proxy.
-// Lost on hard-refresh; the refresh-token flow (httpOnly cookie) recovers it.
-let _accessToken: string | null = null;
-
-export function setAccessToken(token: string): void {
-  _accessToken = token;
-}
-
-export function clearAuthToken(): void {
-  _accessToken = null;
-}
+const API_TIMEOUT_MS = 15_000;
 
 export type ApiRequestInit = {
   body?: unknown;
@@ -34,11 +21,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function unwrapEnvelope<T>(payload: unknown): T {
-  if (isRecord(payload) && payload.success === true && "data" in payload) {
-    return (payload as ApiSuccessEnvelope<T>).data;
-  }
-  return payload as T;
+export function clearAuthToken(): void {
+  // Auth is cookie-only (httpOnly). Kept as a compatibility no-op.
 }
 
 function shouldAttemptRefreshOn401(path: string): boolean {
@@ -62,19 +46,15 @@ async function refreshAccessToken(): Promise<boolean> {
     try {
       // Use the dedicated Next.js auth route so the refreshed cookies are
       // re-set with SameSite=lax and the correct Vercel domain.
-      const res = await axios.request({
+      await axios.request({
         url: "/api/auth/refresh",
         method: "POST",
         headers: { Accept: "application/json" },
         withCredentials: true,
         responseType: "json",
+        timeout: API_TIMEOUT_MS,
       });
-      const data = unwrapEnvelope<{ accessToken?: string }>(res.data);
-      if (data?.accessToken) {
-        setAccessToken(data.accessToken);
-        return true;
-      }
-      return false;
+      return true;
     } catch {
       return false;
     } finally {
@@ -97,9 +77,6 @@ export async function apiRequest<T>(
   const url = joinUrl(getApiBaseUrl(), path);
   const headers: Record<string, string | undefined> = {
     Accept: "application/json",
-    // Send stored access token as Bearer so the backend's JWT guard works
-    // without relying on the proxy to forward httpOnly cookies.
-    ...(_accessToken ? { Authorization: `Bearer ${_accessToken}` } : {}),
     ...(init?.headers ?? {}),
   };
 
@@ -123,6 +100,7 @@ export async function apiRequest<T>(
       signal: init?.signal,
       withCredentials: true,
       responseType: "json",
+      timeout: API_TIMEOUT_MS,
     });
     const payload: unknown = res.data;
 
@@ -136,11 +114,7 @@ export async function apiRequest<T>(
       const status = error.response?.status ?? 0;
       const payload = error.response?.data;
 
-      if (
-        status === 401 &&
-        !isRetry &&
-        shouldAttemptRefreshOn401(path)
-      ) {
+      if (status === 401 && !isRetry && shouldAttemptRefreshOn401(path)) {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
           return apiRequest<T>(method, path, init, true);

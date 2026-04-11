@@ -11,9 +11,6 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   user: AuthUser;
-  accessToken: string;
-  /** @deprecated use accessToken */
-  token?: string;
 }
 
 export interface RegisterPayload {
@@ -29,5 +26,8 @@ export interface RegisterResponse {
     id: string;
     name: string;
   };
-  accessToken: string;
+}
+
+export interface RefreshResponse {
+  ok: true;
 }

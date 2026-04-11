@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth.api";
@@ -17,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
@@ -38,9 +36,10 @@ export default function RegisterPage() {
         email,
         password,
       });
+      await authApi.me();
       queryClient.clear();
-      router.replace("/dashboard");
-      router.refresh();
+      window.location.assign("/dashboard");
+      return;
     } catch (err: unknown) {
       const message =
         typeof err === "object" && err !== null && "message" in err
